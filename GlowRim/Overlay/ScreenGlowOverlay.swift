@@ -13,8 +13,8 @@ final class ScreenGlowOverlay {
     private var baseWidth: CGFloat = 25
     private var baseBrightness: CGFloat = 0.8
     private var baseSoftness: CGFloat = 40
-    private var campfireMode: Bool = false
     private var breathingEnabled: Bool = true
+    private var blackScreenEnabled: Bool = false
 
     // Animation
     private var animationTimer: Timer?
@@ -22,24 +22,62 @@ final class ScreenGlowOverlay {
     private var fadeInProgress: CGFloat = 0
     private var isFadingIn = false
 
-    private init() {}
+    // Event monitors for black screen auto-disable
+    private var mouseClickMonitor: Any?
+    private var keyboardMonitor: Any?
+    private var mouseTrackingTimer: Timer?
+    private var lastMouseLocation: NSPoint = .zero
+    private var mouseIdleTimer: Timer?
+    private var isMouseActive: Bool = false
 
-    func show(color: NSColor, width: CGFloat, brightness: CGFloat, softness: CGFloat, campfireMode: Bool, breathingEnabled: Bool) {
+    static let blackScreenDisabledNotification = Notification.Name("GlowRimBlackScreenDisabled")
+
+    // Configurable performance settings
+    private(set) var fps: Double = 18.0
+    private let gradientLevels: Int = 128 // Enough for smooth transitions
+
+    // Precalculated breathing animation
+    private var breathingLookup: [(brightness: CGFloat, width: CGFloat, softness: CGFloat)] = []
+    private var breathingCycleFrames: Int = 1620 // 90s * 18fps (covers full intensity cycle)
+    private var currentFrame = 0
+
+    private init() {
+        precalculateBreathingCycle()
+    }
+
+    // MARK: - Performance Settings
+
+    func setFPS(_ newFPS: Double) {
+        let clampedFPS = max(10, min(144, newFPS))
+        guard clampedFPS != fps else { return }
+        fps = clampedFPS
+        breathingCycleFrames = Int(90.0 * fps) // 90 second cycle (covers full intensity envelope)
+        precalculateBreathingCycle()
+
+        // Restart animation with new FPS if running
+        if animationTimer != nil {
+            updateTimerRate()
+        }
+    }
+
+    func show(color: NSColor, width: CGFloat, brightness: CGFloat, softness: CGFloat, breathingEnabled: Bool, blackScreen: Bool = false) {
         baseColor = color
         baseWidth = width
         baseBrightness = brightness
         baseSoftness = softness
-        self.campfireMode = campfireMode
         self.breathingEnabled = breathingEnabled
+        self.blackScreenEnabled = blackScreen
 
         if overlayWindow == nil {
             createWindow()
         }
 
+        // Update black screen state
+        glowView?.setBlackScreen(blackScreen)
+        updateEventMonitors()
+
         // Precalculate gradients based on mode
-        if campfireMode {
-            glowView?.precalculateFireGradients(baseBrightness: brightness)
-        } else if breathingEnabled {
+        if breathingEnabled {
             glowView?.precalculateBreathingGradients(for: color)
         }
 
@@ -54,8 +92,100 @@ final class ScreenGlowOverlay {
         startAnimation()
     }
 
+    private func updateEventMonitors() {
+        if blackScreenEnabled {
+            startEventMonitors()
+        } else {
+            stopEventMonitors()
+        }
+    }
+
+    private func startEventMonitors() {
+        guard mouseClickMonitor == nil else { return }
+
+        // Monitor mouse clicks - disable black screen
+        mouseClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.disableBlackScreen()
+        }
+
+        // Monitor keyboard - disable black screen
+        keyboardMonitor = NSEvent.addGlobalMonitorForEvents(matching: .keyDown) { [weak self] _ in
+            self?.disableBlackScreen()
+        }
+
+        // Poll mouse position to detect movement
+        lastMouseLocation = NSEvent.mouseLocation
+        mouseTrackingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            self?.checkMouseMovement()
+        }
+    }
+
+    private func checkMouseMovement() {
+        guard blackScreenEnabled else { return }
+
+        let currentLocation = NSEvent.mouseLocation
+        let dx = abs(currentLocation.x - lastMouseLocation.x)
+        let dy = abs(currentLocation.y - lastMouseLocation.y)
+
+        // If mouse moved more than 5 pixels
+        if dx > 5 || dy > 5 {
+            lastMouseLocation = currentLocation
+            handleMouseMoved()
+        }
+    }
+
+    private func handleMouseMoved() {
+        // Cancel existing idle timer
+        mouseIdleTimer?.invalidate()
+
+        // Fade out black screen when mouse moves
+        if !isMouseActive {
+            isMouseActive = true
+            glowView?.animateBlackScreenOpacity(to: 0, duration: 0.3)
+        }
+
+        // Fade in black screen again after 3 seconds of inactivity
+        mouseIdleTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { [weak self] _ in
+            self?.handleMouseIdle()
+        }
+    }
+
+    private func handleMouseIdle() {
+        guard blackScreenEnabled, isMouseActive else { return }
+        isMouseActive = false
+        glowView?.animateBlackScreenOpacity(to: 1.0, duration: 0.5)
+    }
+
+    private func stopEventMonitors() {
+        if let monitor = mouseClickMonitor {
+            NSEvent.removeMonitor(monitor)
+            mouseClickMonitor = nil
+        }
+        if let monitor = keyboardMonitor {
+            NSEvent.removeMonitor(monitor)
+            keyboardMonitor = nil
+        }
+        mouseTrackingTimer?.invalidate()
+        mouseTrackingTimer = nil
+        mouseIdleTimer?.invalidate()
+        mouseIdleTimer = nil
+        isMouseActive = false
+    }
+
+    private func disableBlackScreen() {
+        guard blackScreenEnabled else { return }
+        blackScreenEnabled = false
+        mouseIdleTimer?.invalidate()
+        mouseIdleTimer = nil
+        isMouseActive = false
+        glowView?.setBlackScreen(false)
+        stopEventMonitors()
+        NotificationCenter.default.post(name: ScreenGlowOverlay.blackScreenDisabledNotification, object: nil)
+    }
+
     func hide() {
         stopAnimation()
+        stopEventMonitors()
 
         // Fade out
         NSAnimationContext.runAnimationGroup({ context in
@@ -66,24 +196,20 @@ final class ScreenGlowOverlay {
         })
     }
 
-    func update(color: NSColor, width: CGFloat, brightness: CGFloat, softness: CGFloat, campfireMode: Bool, breathingEnabled: Bool) {
-        let brightnessChanged = baseBrightness != brightness
-
+    func update(color: NSColor, width: CGFloat, brightness: CGFloat, softness: CGFloat, breathingEnabled: Bool, blackScreen: Bool = false) {
         baseColor = color
         baseWidth = width
         baseBrightness = brightness
         baseSoftness = softness
-        self.campfireMode = campfireMode
         self.breathingEnabled = breathingEnabled
+        self.blackScreenEnabled = blackScreen
+
+        // Update black screen state
+        glowView?.setBlackScreen(blackScreen)
+        updateEventMonitors()
 
         // Precalculate gradients based on mode
-        if campfireMode {
-            // Invalidate fire gradients if brightness changed
-            if brightnessChanged {
-                glowView?.invalidateFireGradients()
-            }
-            glowView?.precalculateFireGradients(baseBrightness: brightness)
-        } else if breathingEnabled {
+        if breathingEnabled {
             glowView?.precalculateBreathingGradients(for: color)
         }
 
@@ -135,20 +261,13 @@ final class ScreenGlowOverlay {
     private func startAnimation() {
         stopAnimation()
 
-        // Ultra-low frame rates for minimal CPU:
-        // - Campfire: 12fps (still smooth enough for fire)
-        // - Breathing: 8fps (very slow animation)
-        // - Static: 0.5fps (just keep-alive)
-        let fps: Double
-        if campfireMode {
-            fps = 12.0
-        } else if breathingEnabled {
-            fps = 8.0
-        } else {
-            fps = 0.5
-        }
+        // Reset frame counter for breathing animation
+        currentFrame = 0
 
-        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/fps, repeats: true) { [weak self] _ in
+        // Use configured FPS for breathing, minimal for static
+        let effectiveFPS: Double = breathingEnabled ? fps : 0.5
+
+        animationTimer = Timer.scheduledTimer(withTimeInterval: 1.0/effectiveFPS, repeats: true) { [weak self] _ in
             self?.updateAnimation()
         }
         if let timer = animationTimer {
@@ -173,9 +292,7 @@ final class ScreenGlowOverlay {
             }
         }
 
-        if campfireMode {
-            updateCampfire(time: time)
-        } else if breathingEnabled {
+        if breathingEnabled {
             updateNormalBreathing(time: time)
         } else {
             // Static mode - just draw once
@@ -188,47 +305,86 @@ final class ScreenGlowOverlay {
         }
     }
 
+    // Precalculate entire breathing cycle (done once at startup or when FPS changes)
+    private func precalculateBreathingCycle() {
+        breathingLookup.removeAll()
+        breathingLookup.reserveCapacity(breathingCycleFrames)
+
+        for frame in 0..<breathingCycleFrames {
+            let time = Double(frame) / fps // Convert frame to time
+
+            // Intensity envelope: cycles through light → marked → full → light
+            // Uses a 90 second cycle for the intensity variation
+            let intensityCycle = sin(time * 0.07) // ~90 sec cycle
+            let easedIntensity = easeInOutSine(intensityCycle)
+            // Map -1...1 to 0.3...1.0 (minimum 30% intensity, max 100%)
+            let intensity = 0.3 + (easedIntensity + 1) * 0.35
+
+            // Primary breathing wave (adapts speed slightly based on intensity)
+            let breathSpeed = 0.18 + intensity * 0.04 // Faster when more intense
+            let breathe1 = sin(time * breathSpeed) // Primary breath
+            let breathe2 = sin(time * 0.5) * 0.3 // Secondary wave for organic feel
+            let breathe3 = sin(time * 0.1) // Ultra slow drift
+
+            // Apply smooth easing to sine waves
+            let eased1 = easeInOutSine(breathe1)
+            let eased2 = easeInOutSine(breathe2)
+            let eased3 = easeInOutSine(breathe3)
+
+            // Combined breath: ranges from -1 to +1
+            let combinedBreath = (eased1 + eased2) / 1.3
+
+            // Scale amplitude by intensity
+            // Light: subtle breathing, light never disappears
+            // Full: light can completely disappear (like emptying lungs fully)
+
+            // Brightness: at full intensity, goes from 0 to 1.2 (complete disappearance)
+            // At light intensity, goes from 0.85 to 1.05
+            // combinedBreath goes from -1 (exhale) to +1 (inhale)
+            let minBrightness = 0.85 - intensity * 0.85 // 0.85 at light, 0 at full
+            let maxBrightness = 1.0 + intensity * 0.15 // 1.0 at light, 1.15 at full
+            let breathNormalized = (combinedBreath + 1) / 2 // 0 to 1
+            let brightnessMultiplier = minBrightness + breathNormalized * (maxBrightness - minBrightness)
+
+            // Width: retracts more at full intensity exhale
+            let minWidth = 1.0 - intensity * 0.6 // 1.0 at light, 0.4 at full (retracts to 40%)
+            let maxWidth = 1.0 + intensity * 0.15 // 1.0 at light, 1.15 at full
+            let widthMultiplier = minWidth + breathNormalized * (maxWidth - minWidth) + eased3 * 0.02
+
+            // Softness: more variation at full intensity
+            let softnessRange = 0.05 + intensity * 0.25 // 5% to 30% variation
+            let softnessMultiplier = 1.0 + eased2 * softnessRange
+
+            breathingLookup.append((
+                brightness: CGFloat(brightnessMultiplier),
+                width: CGFloat(widthMultiplier),
+                softness: CGFloat(softnessMultiplier)
+            ))
+        }
+    }
+
+    // Smooth easing function for sine waves
+    private func easeInOutSine(_ x: Double) -> Double {
+        // Convert -1...1 range to 0...1, apply easing, convert back
+        let normalized = (x + 1) / 2 // -1...1 -> 0...1
+        let eased = -(cos(Double.pi * normalized) - 1) / 2
+        return eased * 2 - 1 // 0...1 -> -1...1
+    }
+
     private func updateNormalBreathing(time: Double) {
-        // EXTREME breathing like lungs - can go to 0%
-        let breathe1 = sin(time * 0.15) // Very slow primary breath (40 sec cycle)
-        let breathe2 = sin(time * 0.4) * 0.4 // Secondary wave
-        let breathe3 = sin(time * 0.08) // Ultra slow drift (80 sec cycle)
+        guard !breathingLookup.isEmpty else { return }
 
-        // Combined breath: ranges from -1 to +1
-        let combinedBreath = (breathe1 + breathe2) / 1.4
+        // Lookup precalculated values (zero CPU cost per frame)
+        let frame = breathingLookup[currentFrame]
+        currentFrame = (currentFrame + 1) % breathingCycleFrames
 
-        // Brightness multiplier: 0 to 1.3 (maps to precalculated gradients)
-        let brightnessMultiplier = Swift.max(0, (combinedBreath + 1) * 0.65) // 0 to 1.3
-
-        // Width: 40% to 180% of base (dramatic expansion/contraction)
-        let widthMultiplier = 0.4 + (breathe1 + 1) * 0.7 + breathe3 * 0.2
-        let currentWidth = baseWidth * CGFloat(widthMultiplier)
-
-        // Softness: 30% to 200% of base
-        let softnessMultiplier = 0.3 + (breathe2 + 1) * 0.85 + breathe3 * 0.3
-        let currentSoftness = baseSoftness * CGFloat(softnessMultiplier)
+        let currentWidth = baseWidth * frame.width
+        let currentSoftness = baseSoftness * frame.softness
 
         // Use precalculated gradient based on brightness multiplier
         glowView?.updateBreathing(
             width: currentWidth,
-            brightnessMultiplier: CGFloat(brightnessMultiplier),
-            softness: currentSoftness
-        )
-    }
-
-    private func updateCampfire(time: Double) {
-        // Width breathing for fire
-        let widthBreath = 1.0 + sin(time * 2.0) * 0.2 + sin(time * 4.5) * 0.1
-        let currentWidth = baseWidth * CGFloat(widthBreath)
-
-        // Softness variation
-        let softnessBreath = 1.0 + sin(time * 1.5) * 0.3
-        let currentSoftness = baseSoftness * CGFloat(softnessBreath)
-
-        glowView?.updateCampfireOptimized(
-            time: time,
-            width: currentWidth,
-            brightness: baseBrightness,
+            brightnessMultiplier: frame.brightness,
             softness: currentSoftness
         )
     }
@@ -251,11 +407,6 @@ final class GlowView: NSView {
     private var ringWidth: CGFloat = 25
     private var brightness: CGFloat = 0.8
     private var softness: CGFloat = 40
-    private var isCampfire: Bool = false
-    private var campfireTime: Double = 0
-
-    // Pre-computed noise offsets (small array = less RAM)
-    private let noiseOffsets: [Double] = (0..<50).map { _ in Double.random(in: 0...100) }
 
     // Cached color space
     private let hdrColorSpace = CGColorSpace(name: CGColorSpace.extendedLinearSRGB) ?? CGColorSpaceCreateDeviceRGB()
@@ -264,16 +415,10 @@ final class GlowView: NSView {
     private var cachedGradient: CGGradient?
     private var cachedGradientKey: String = ""
 
-    // Precalculated breathing gradients (64 levels from 0% to 130% brightness for smooth transitions)
+    // Precalculated breathing gradients (enough for smooth transitions)
     private var breathingGradients: [CGGradient] = []
     private var breathingGradientsColorKey: String = ""
-    private let breathingLevels = 64
-
-    // Precalculated fire gradients: 32 intensity levels × 8 color levels = 256 gradients
-    private var fireGradients: [[CGGradient]] = [] // [intensityIndex][colorIndex]
-    private var fireGradientsReady = false
-    private let fireIntensityLevels = 32
-    private let fireColorLevels = 8
+    private let breathingLevels: Int = 128
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -296,7 +441,6 @@ final class GlowView: NSView {
         self.ringWidth = width
         self.brightness = brightness
         self.softness = softness
-        self.isCampfire = false
         self.isBreathingMode = false
         needsDisplay = true
     }
@@ -308,19 +452,34 @@ final class GlowView: NSView {
             rgbColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
         }
 
-        let colorKey = "\(red),\(green),\(blue)"
+        let colorKey = "\(red),\(green),\(blue),\(breathingLevels)"
         guard colorKey != breathingGradientsColorKey else { return }
 
         breathingGradients.removeAll()
+        breathingGradients.reserveCapacity(breathingLevels)
         let hdrMultiplier: CGFloat = 2.5
 
-        // Precalculate 16 gradients: 0%, 8.7%, 17.3%, ..., 130% brightness
+        // Precalculate gradients: 0% to 120% brightness with ultra-smooth falloff
         for i in 0..<breathingLevels {
-            let brightnessMultiplier = CGFloat(i) / CGFloat(breathingLevels - 1) * 1.3
+            let brightnessMultiplier = CGFloat(i) / CGFloat(breathingLevels - 1) * 1.20 // 0 to 1.20
             let hdrBrightness = brightnessMultiplier * hdrMultiplier
 
-            let locations: [CGFloat] = [0, 0.05, 0.15, 0.35, 0.6, 1.0]
-            let alphas: [CGFloat] = [hdrBrightness, hdrBrightness * 0.8, hdrBrightness * 0.5, hdrBrightness * 0.2, hdrBrightness * 0.05, 0]
+            // Ultra-smooth gradient with 12 color stops for silky falloff
+            let locations: [CGFloat] = [0, 0.02, 0.05, 0.10, 0.18, 0.28, 0.40, 0.55, 0.70, 0.85, 0.95, 1.0]
+            let alphas: [CGFloat] = [
+                hdrBrightness,
+                hdrBrightness * 0.95,
+                hdrBrightness * 0.85,
+                hdrBrightness * 0.70,
+                hdrBrightness * 0.52,
+                hdrBrightness * 0.35,
+                hdrBrightness * 0.22,
+                hdrBrightness * 0.12,
+                hdrBrightness * 0.05,
+                hdrBrightness * 0.02,
+                hdrBrightness * 0.005,
+                0
+            ]
 
             var components: [CGFloat] = []
             for a in alphas {
@@ -340,100 +499,75 @@ final class GlowView: NSView {
         breathingGradientsColorKey = colorKey
     }
 
-    // Get precalculated gradient for a brightness multiplier (0 to 1.3)
+    // Get precalculated gradient for a brightness multiplier (0 to 1.20)
     func getBreathingGradient(brightnessMultiplier: CGFloat) -> CGGradient? {
         guard !breathingGradients.isEmpty else { return nil }
-        let index = Int((brightnessMultiplier / 1.3) * CGFloat(breathingLevels - 1))
+        let normalizedValue = brightnessMultiplier / 1.20 // Map 0-1.20 to 0-1
+        let index = Int(normalizedValue * CGFloat(breathingLevels - 1))
         let clampedIndex = Swift.max(0, Swift.min(breathingLevels - 1, index))
         return breathingGradients[clampedIndex]
-    }
-
-    // Precalculate fire gradients (called once at startup or when campfire mode enabled)
-    func precalculateFireGradients(baseBrightness: CGFloat) {
-        guard !fireGradientsReady else { return }
-
-        let hdrMultiplier: CGFloat = 3.0
-        fireGradients = []
-
-        // Intensity range: 0.5 to 1.1 (based on flameValue calculation)
-        // Color shift range: 0 to 1 (maps to green 0.35 to 0.65)
-        for intensityIdx in 0..<fireIntensityLevels {
-            var colorRow: [CGGradient] = []
-            let intensity = 0.5 + CGFloat(intensityIdx) / CGFloat(fireIntensityLevels - 1) * 0.6
-
-            for colorIdx in 0..<fireColorLevels {
-                let colorShift = CGFloat(colorIdx) / CGFloat(fireColorLevels - 1)
-
-                let red: CGFloat = 1.0
-                let green: CGFloat = 0.35 + colorShift * 0.3
-                let blue: CGFloat = 0.05
-
-                let hdrBrightness = baseBrightness * hdrMultiplier * intensity
-
-                let locations: [CGFloat] = [0, 0.08, 0.25, 0.5, 0.8, 1.0]
-                let alphas: [CGFloat] = [hdrBrightness, hdrBrightness * 0.7, hdrBrightness * 0.35, hdrBrightness * 0.12, hdrBrightness * 0.02, 0]
-
-                var components: [CGFloat] = []
-                for a in alphas {
-                    components.append(contentsOf: [red * hdrBrightness, green * hdrBrightness, blue * hdrBrightness, a])
-                }
-
-                if let gradient = CGGradient(
-                    colorSpace: hdrColorSpace,
-                    colorComponents: components,
-                    locations: locations,
-                    count: locations.count
-                ) {
-                    colorRow.append(gradient)
-                }
-            }
-            fireGradients.append(colorRow)
-        }
-
-        fireGradientsReady = true
-    }
-
-    // Get precalculated fire gradient
-    // intensity: 0.5 to 1.1, colorShift: 0 to 1
-    func getFireGradient(intensity: CGFloat, colorShift: CGFloat) -> CGGradient? {
-        guard fireGradientsReady, !fireGradients.isEmpty else { return nil }
-
-        let normalizedIntensity = (intensity - 0.5) / 0.6 // 0 to 1
-        let intensityIdx = Int(normalizedIntensity * CGFloat(fireIntensityLevels - 1))
-        let clampedIntensityIdx = Swift.max(0, Swift.min(fireIntensityLevels - 1, intensityIdx))
-
-        let colorIdx = Int(colorShift * CGFloat(fireColorLevels - 1))
-        let clampedColorIdx = Swift.max(0, Swift.min(fireColorLevels - 1, colorIdx))
-
-        return fireGradients[clampedIntensityIdx][clampedColorIdx]
-    }
-
-    // Invalidate fire gradients when brightness changes
-    func invalidateFireGradients() {
-        fireGradientsReady = false
-        fireGradients.removeAll()
     }
 
     // Breathing mode: uses precalculated gradients
     private var isBreathingMode = false
     private var breathingBrightnessMultiplier: CGFloat = 1.0
 
+    // Black screen mode (for mini-LED)
+    private var blackScreenEnabled = false
+    private var blackScreenOpacity: CGFloat = 1.0
+    private var blackScreenTargetOpacity: CGFloat = 1.0
+    private var blackScreenFadeTimer: Timer?
+
+    func setBlackScreen(_ enabled: Bool) {
+        blackScreenEnabled = enabled
+        blackScreenOpacity = 1.0
+        blackScreenTargetOpacity = 1.0
+        blackScreenFadeTimer?.invalidate()
+        blackScreenFadeTimer = nil
+        needsDisplay = true
+    }
+
+    // Precalculated fade steps for energy efficiency
+    private static let fadeFrameRate: Double = 24
+    private var fadeSteps: [(opacity: CGFloat, frameIndex: Int)] = []
+    private var fadeCurrentFrame: Int = 0
+
+    func animateBlackScreenOpacity(to targetOpacity: CGFloat, duration: TimeInterval) {
+        blackScreenFadeTimer?.invalidate()
+        blackScreenTargetOpacity = targetOpacity
+
+        // Precalculate all fade steps
+        let totalFrames = max(1, Int(duration * Self.fadeFrameRate))
+        let startOpacity = blackScreenOpacity
+        fadeSteps = (0...totalFrames).map { frame in
+            let progress = CGFloat(frame) / CGFloat(totalFrames)
+            let opacity = startOpacity + (targetOpacity - startOpacity) * progress
+            return (opacity: opacity, frameIndex: frame)
+        }
+        fadeCurrentFrame = 0
+
+        let stepDuration = 1.0 / Self.fadeFrameRate
+        blackScreenFadeTimer = Timer.scheduledTimer(withTimeInterval: stepDuration, repeats: true) { [weak self] timer in
+            guard let self = self else { timer.invalidate(); return }
+
+            if self.fadeCurrentFrame >= self.fadeSteps.count {
+                self.blackScreenOpacity = targetOpacity
+                timer.invalidate()
+                self.blackScreenFadeTimer = nil
+                self.fadeSteps = []
+            } else {
+                self.blackScreenOpacity = self.fadeSteps[self.fadeCurrentFrame].opacity
+                self.fadeCurrentFrame += 1
+            }
+            self.needsDisplay = true
+        }
+    }
+
     func updateBreathing(width: CGFloat, brightnessMultiplier: CGFloat, softness: CGFloat) {
         self.ringWidth = width
         self.softness = softness
         self.breathingBrightnessMultiplier = brightnessMultiplier
         self.isBreathingMode = true
-        self.isCampfire = false
-        needsDisplay = true
-    }
-
-    func updateCampfireOptimized(time: Double, width: CGFloat, brightness: CGFloat, softness: CGFloat) {
-        self.campfireTime = time
-        self.ringWidth = width
-        self.isBreathingMode = false
-        self.brightness = brightness
-        self.softness = softness
-        self.isCampfire = true
         needsDisplay = true
     }
 
@@ -441,9 +575,14 @@ final class GlowView: NSView {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.clear(bounds)
 
-        if isCampfire {
-            drawOptimizedFire(context: context)
-        } else if isBreathingMode {
+        // Fill with black if enabled (for mini-LED pixel shutdown)
+        // Fades out when mouse moves to allow user to see UI
+        if blackScreenEnabled && blackScreenOpacity > 0 {
+            context.setFillColor(NSColor.black.withAlphaComponent(blackScreenOpacity).cgColor)
+            context.fill(bounds)
+        }
+
+        if isBreathingMode {
             drawBreathingGlow(context: context)
         } else {
             drawNormalGlow(context: context)
@@ -462,16 +601,6 @@ final class GlowView: NSView {
         }
 
         drawAllEdges(context: context, gradient: gradient, glowWidth: totalGlowWidth)
-    }
-
-    // MARK: - Fast noise (optimized)
-
-    @inline(__always)
-    private func fastNoise(_ x: Double, _ offset: Double) -> Double {
-        // Simplified 2-octave noise - much faster
-        let n1 = sin(x * 0.03 + offset)
-        let n2 = sin(x * 0.07 + offset * 1.3) * 0.5
-        return (n1 + n2) / 1.5
     }
 
     // MARK: - Normal Glow
@@ -494,8 +623,22 @@ final class GlowView: NSView {
         if key == cachedGradientKey, let cached = cachedGradient {
             gradient = cached
         } else {
-            let locations: [CGFloat] = [0, 0.05, 0.15, 0.35, 0.6, 1.0]
-            let alphas: [CGFloat] = [hdrBrightness, hdrBrightness * 0.8, hdrBrightness * 0.5, hdrBrightness * 0.2, hdrBrightness * 0.05, 0]
+            // Ultra-smooth gradient with 12 color stops for silky falloff
+            let locations: [CGFloat] = [0, 0.02, 0.05, 0.10, 0.18, 0.28, 0.40, 0.55, 0.70, 0.85, 0.95, 1.0]
+            let alphas: [CGFloat] = [
+                hdrBrightness,
+                hdrBrightness * 0.95,
+                hdrBrightness * 0.85,
+                hdrBrightness * 0.70,
+                hdrBrightness * 0.52,
+                hdrBrightness * 0.35,
+                hdrBrightness * 0.22,
+                hdrBrightness * 0.12,
+                hdrBrightness * 0.05,
+                hdrBrightness * 0.02,
+                hdrBrightness * 0.005,
+                0
+            ]
 
             var components: [CGFloat] = []
             for a in alphas {
@@ -517,135 +660,7 @@ final class GlowView: NSView {
         drawAllEdges(context: context, gradient: gradient, glowWidth: totalGlowWidth)
     }
 
-    // MARK: - Optimized Fire (low CPU)
-
-    private func drawOptimizedFire(context: CGContext) {
-        let totalGlowWidth = ringWidth + softness
-        let hdrMultiplier: CGFloat = 3.0
-        let time = campfireTime
-
-        // OPTIMIZATION: Sample every 20 pixels (10x less work than original)
-        let step: CGFloat = 20
-
-        // Draw all 4 edges with optimized sampling
-        drawOptimizedFireEdge(context: context, edge: .top, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier, step: step)
-        drawOptimizedFireEdge(context: context, edge: .bottom, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier, step: step)
-        drawOptimizedFireEdge(context: context, edge: .left, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier, step: step)
-        drawOptimizedFireEdge(context: context, edge: .right, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier, step: step)
-
-        // Corners
-        drawOptimizedFireCorner(context: context, corner: .topLeft, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier)
-        drawOptimizedFireCorner(context: context, corner: .topRight, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier)
-        drawOptimizedFireCorner(context: context, corner: .bottomLeft, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier)
-        drawOptimizedFireCorner(context: context, corner: .bottomRight, time: time, glowWidth: totalGlowWidth, hdrMultiplier: hdrMultiplier)
-    }
-
-    private enum Edge { case top, bottom, left, right }
-    private enum Corner { case topLeft, topRight, bottomLeft, bottomRight }
-
-    private func drawOptimizedFireEdge(context: CGContext, edge: Edge, time: Double, glowWidth: CGFloat, hdrMultiplier: CGFloat, step: CGFloat) {
-        let edgeLength: CGFloat
-        switch edge {
-        case .top, .bottom: edgeLength = bounds.width
-        case .left, .right: edgeLength = bounds.height
-        }
-
-        let sampleCount = Int(edgeLength / step)
-
-        for i in 0..<sampleCount {
-            let pos = CGFloat(i) * step
-            let nextPos = CGFloat(i + 1) * step
-
-            // Fast noise lookup using pre-computed offsets
-            let noiseIndex = i % noiseOffsets.count
-            let offset = noiseOffsets[noiseIndex]
-
-            // Simplified flame calculation
-            let n1 = fastNoise(time * 40 + Double(pos) * 0.1, offset)
-            let n2 = fastNoise(time * 80 + Double(pos) * 0.15, offset * 1.7) * 0.4
-            let flicker = sin(time * 12 + offset) > 0.7 ? 0.2 : 0.0
-
-            let flameValue = (n1 + n2) * 0.5 + 0.5 + flicker
-            let intensity = CGFloat(0.5 + flameValue * 0.6)
-
-            // Color shift: 0 to 1
-            let colorShift = CGFloat((n1 + 1) * 0.5)
-
-            let localGlowWidth = glowWidth * CGFloat(0.75 + flameValue * 0.5)
-
-            // Use precalculated gradient
-            guard let gradient = getFireGradient(intensity: intensity, colorShift: colorShift) else { continue }
-
-            context.saveGState()
-
-            let clipRect: CGRect
-            let gradStart: CGPoint
-            let gradEnd: CGPoint
-
-            switch edge {
-            case .top:
-                clipRect = CGRect(x: pos, y: bounds.height - localGlowWidth, width: nextPos - pos, height: localGlowWidth)
-                gradStart = CGPoint(x: (pos + nextPos) / 2, y: bounds.height)
-                gradEnd = CGPoint(x: (pos + nextPos) / 2, y: bounds.height - localGlowWidth)
-            case .bottom:
-                clipRect = CGRect(x: pos, y: 0, width: nextPos - pos, height: localGlowWidth)
-                gradStart = CGPoint(x: (pos + nextPos) / 2, y: 0)
-                gradEnd = CGPoint(x: (pos + nextPos) / 2, y: localGlowWidth)
-            case .left:
-                clipRect = CGRect(x: 0, y: pos, width: localGlowWidth, height: nextPos - pos)
-                gradStart = CGPoint(x: 0, y: (pos + nextPos) / 2)
-                gradEnd = CGPoint(x: localGlowWidth, y: (pos + nextPos) / 2)
-            case .right:
-                clipRect = CGRect(x: bounds.width - localGlowWidth, y: pos, width: localGlowWidth, height: nextPos - pos)
-                gradStart = CGPoint(x: bounds.width, y: (pos + nextPos) / 2)
-                gradEnd = CGPoint(x: bounds.width - localGlowWidth, y: (pos + nextPos) / 2)
-            }
-
-            context.clip(to: clipRect)
-            context.drawLinearGradient(gradient, start: gradStart, end: gradEnd, options: [.drawsAfterEndLocation])
-            context.restoreGState()
-        }
-    }
-
-    private func drawOptimizedFireCorner(context: CGContext, corner: Corner, time: Double, glowWidth: CGFloat, hdrMultiplier: CGFloat) {
-        let center: CGPoint
-        let clipRect: CGRect
-        let cornerIndex: Int
-
-        switch corner {
-        case .topLeft:
-            center = CGPoint(x: 0, y: bounds.height)
-            clipRect = CGRect(x: 0, y: bounds.height - glowWidth, width: glowWidth, height: glowWidth)
-            cornerIndex = 0
-        case .topRight:
-            center = CGPoint(x: bounds.width, y: bounds.height)
-            clipRect = CGRect(x: bounds.width - glowWidth, y: bounds.height - glowWidth, width: glowWidth, height: glowWidth)
-            cornerIndex = 1
-        case .bottomLeft:
-            center = CGPoint(x: 0, y: 0)
-            clipRect = CGRect(x: 0, y: 0, width: glowWidth, height: glowWidth)
-            cornerIndex = 2
-        case .bottomRight:
-            center = CGPoint(x: bounds.width, y: 0)
-            clipRect = CGRect(x: bounds.width - glowWidth, y: 0, width: glowWidth, height: glowWidth)
-            cornerIndex = 3
-        }
-
-        let offset = noiseOffsets[cornerIndex]
-        let n1 = fastNoise(time * 40, offset)
-        let intensity = CGFloat(0.6 + n1 * 0.3)
-        let colorShift = CGFloat((n1 + 1) * 0.5)
-
-        // Use precalculated gradient
-        guard let gradient = getFireGradient(intensity: intensity, colorShift: colorShift) else { return }
-
-        context.saveGState()
-        context.clip(to: clipRect)
-        context.drawRadialGradient(gradient, startCenter: center, startRadius: 0, endCenter: center, endRadius: glowWidth, options: [.drawsAfterEndLocation])
-        context.restoreGState()
-    }
-
-    // MARK: - Normal edges
+    // MARK: - Draw edges
 
     private func drawAllEdges(context: CGContext, gradient: CGGradient, glowWidth: CGFloat) {
         let edges: [(CGRect, CGPoint, CGPoint)] = [

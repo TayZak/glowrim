@@ -66,10 +66,4 @@ struct ColorPreset: Identifiable, Codable, Equatable {
     static let allPresets: [ColorPreset] = [
         .warm, .cool, .daylight, .goldenHour, .sunset, .custom
     ]
-
-    static let campfireColors: [ColorPreset] = [
-        ColorPreset(id: "flame1", name: "Flame Core", red: 1.0, green: 0.95, blue: 0.7),
-        ColorPreset(id: "flame2", name: "Flame Mid", red: 1.0, green: 0.65, blue: 0.2),
-        ColorPreset(id: "flame3", name: "Flame Edge", red: 1.0, green: 0.35, blue: 0.1)
-    ]
 }
