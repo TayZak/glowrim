@@ -1,0 +1,465 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A1000001251B0001 /* GlowRimApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002251B0001 /* GlowRimApp.swift */; };
+		A1000003251B0001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004251B0001 /* AppDelegate.swift */; };
+		A1000005251B0001 /* LightMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000006251B0001 /* LightMode.swift */; };
+		A1000007251B0001 /* LightSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000008251B0001 /* LightSettings.swift */; };
+		A1000009251B0001 /* ColorPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000A251B0001 /* ColorPreset.swift */; };
+		A100000B251B0001 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000C251B0001 /* Constants.swift */; };
+		A100000D251B0001 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100000E251B0001 /* Extensions.swift */; };
+		A100000F251B0001 /* HotKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000010251B0001 /* HotKeyManager.swift */; };
+		A1000011251B0001 /* BatteryMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000012251B0001 /* BatteryMonitor.swift */; };
+		A1000013251B0001 /* BurnInProtection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000014251B0001 /* BurnInProtection.swift */; };
+		A1000015251B0001 /* RingLightWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000016251B0001 /* RingLightWindow.swift */; };
+		A1000017251B0001 /* RingLightView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000018251B0001 /* RingLightView.swift */; };
+		A1000019251B0001 /* HDRRingLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001A251B0001 /* HDRRingLayer.swift */; };
+		A100001B251B0001 /* PerlinNoise.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001C251B0001 /* PerlinNoise.swift */; };
+		A100001D251B0001 /* ControlPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100001E251B0001 /* ControlPanelView.swift */; };
+		A100001F251B0001 /* PowerButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000020251B0001 /* PowerButton.swift */; };
+		A1000021251B0001 /* ModeSelector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000022251B0001 /* ModeSelector.swift */; };
+		A1000023251B0001 /* IntensitySlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000024251B0001 /* IntensitySlider.swift */; };
+		A1000025251B0001 /* ColorWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000026251B0001 /* ColorWheelView.swift */; };
+		A1000027251B0001 /* PresetGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000028251B0001 /* PresetGrid.swift */; };
+		A1000029251B0001 /* SpeedControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100002A251B0001 /* SpeedControl.swift */; };
+		A100002B251B0001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A100002C251B0001 /* Assets.xcassets */; };
+		A100002F251B0001 /* RingShapeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000030251B0001 /* RingShapeControls.swift */; };
+		A1000031251B0001 /* ScreenGlowOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000032251B0001 /* ScreenGlowOverlay.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A1000000251B0001 /* GlowRim.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GlowRim.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A1000002251B0001 /* GlowRimApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlowRimApp.swift; sourceTree = "<group>"; };
+		A1000004251B0001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		A1000006251B0001 /* LightMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightMode.swift; sourceTree = "<group>"; };
+		A1000008251B0001 /* LightSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightSettings.swift; sourceTree = "<group>"; };
+		A100000A251B0001 /* ColorPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorPreset.swift; sourceTree = "<group>"; };
+		A100000C251B0001 /* Constants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constants.swift; sourceTree = "<group>"; };
+		A100000E251B0001 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
+		A1000010251B0001 /* HotKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotKeyManager.swift; sourceTree = "<group>"; };
+		A1000012251B0001 /* BatteryMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatteryMonitor.swift; sourceTree = "<group>"; };
+		A1000014251B0001 /* BurnInProtection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BurnInProtection.swift; sourceTree = "<group>"; };
+		A1000016251B0001 /* RingLightWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingLightWindow.swift; sourceTree = "<group>"; };
+		A1000018251B0001 /* RingLightView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingLightView.swift; sourceTree = "<group>"; };
+		A100001A251B0001 /* HDRRingLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HDRRingLayer.swift; sourceTree = "<group>"; };
+		A100001C251B0001 /* PerlinNoise.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerlinNoise.swift; sourceTree = "<group>"; };
+		A100001E251B0001 /* ControlPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControlPanelView.swift; sourceTree = "<group>"; };
+		A1000020251B0001 /* PowerButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PowerButton.swift; sourceTree = "<group>"; };
+		A1000022251B0001 /* ModeSelector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeSelector.swift; sourceTree = "<group>"; };
+		A1000024251B0001 /* IntensitySlider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntensitySlider.swift; sourceTree = "<group>"; };
+		A1000026251B0001 /* ColorWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorWheelView.swift; sourceTree = "<group>"; };
+		A1000028251B0001 /* PresetGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresetGrid.swift; sourceTree = "<group>"; };
+		A100002A251B0001 /* SpeedControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedControl.swift; sourceTree = "<group>"; };
+		A100002C251B0001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A100002D251B0001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A100002E251B0001 /* GlowRim.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlowRim.entitlements; sourceTree = "<group>"; };
+		A1000030251B0001 /* RingShapeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingShapeControls.swift; sourceTree = "<group>"; };
+		A1000032251B0001 /* ScreenGlowOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenGlowOverlay.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A10000F0251B0001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A10000E0251B0001 = {
+			isa = PBXGroup;
+			children = (
+				A10000E1251B0001 /* GlowRim */,
+				A10000E2251B0001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A10000E1251B0001 /* GlowRim */ = {
+			isa = PBXGroup;
+			children = (
+				A1000002251B0001 /* GlowRimApp.swift */,
+				A1000004251B0001 /* AppDelegate.swift */,
+				A10000E3251B0001 /* Models */,
+				A10000E4251B0001 /* Views */,
+				A10000E5251B0001 /* Overlay */,
+				A10000E6251B0001 /* Services */,
+				A10000E7251B0001 /* Utilities */,
+				A100002C251B0001 /* Assets.xcassets */,
+				A100002D251B0001 /* Info.plist */,
+				A100002E251B0001 /* GlowRim.entitlements */,
+			);
+			path = GlowRim;
+			sourceTree = "<group>";
+		};
+		A10000E2251B0001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A1000000251B0001 /* GlowRim.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000E3251B0001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				A1000006251B0001 /* LightMode.swift */,
+				A1000008251B0001 /* LightSettings.swift */,
+				A100000A251B0001 /* ColorPreset.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		A10000E4251B0001 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A100001E251B0001 /* ControlPanelView.swift */,
+				A1000020251B0001 /* PowerButton.swift */,
+				A1000022251B0001 /* ModeSelector.swift */,
+				A1000024251B0001 /* IntensitySlider.swift */,
+				A1000026251B0001 /* ColorWheelView.swift */,
+				A1000028251B0001 /* PresetGrid.swift */,
+				A100002A251B0001 /* SpeedControl.swift */,
+				A1000030251B0001 /* RingShapeControls.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A10000E5251B0001 /* Overlay */ = {
+			isa = PBXGroup;
+			children = (
+				A1000016251B0001 /* RingLightWindow.swift */,
+				A1000018251B0001 /* RingLightView.swift */,
+				A100001A251B0001 /* HDRRingLayer.swift */,
+				A100001C251B0001 /* PerlinNoise.swift */,
+				A1000032251B0001 /* ScreenGlowOverlay.swift */,
+			);
+			path = Overlay;
+			sourceTree = "<group>";
+		};
+		A10000E6251B0001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A1000010251B0001 /* HotKeyManager.swift */,
+				A1000012251B0001 /* BatteryMonitor.swift */,
+				A1000014251B0001 /* BurnInProtection.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A10000E7251B0001 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				A100000C251B0001 /* Constants.swift */,
+				A100000E251B0001 /* Extensions.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A10000FF251B0001 /* GlowRim */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A1000100251B0001 /* Build configuration list for PBXNativeTarget "GlowRim" */;
+			buildPhases = (
+				A10000F1251B0001 /* Sources */,
+				A10000F0251B0001 /* Frameworks */,
+				A10000F2251B0001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GlowRim;
+			productName = GlowRim;
+			productReference = A1000000251B0001 /* GlowRim.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A10000FE251B0001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A10000FF251B0001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A1000101251B0001 /* Build configuration list for PBXProject "GlowRim" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+				fr,
+			);
+			mainGroup = A10000E0251B0001;
+			productRefGroup = A10000E2251B0001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A10000FF251B0001 /* GlowRim */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A10000F2251B0001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A100002B251B0001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A10000F1251B0001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1000001251B0001 /* GlowRimApp.swift in Sources */,
+				A1000003251B0001 /* AppDelegate.swift in Sources */,
+				A1000005251B0001 /* LightMode.swift in Sources */,
+				A1000007251B0001 /* LightSettings.swift in Sources */,
+				A1000009251B0001 /* ColorPreset.swift in Sources */,
+				A100000B251B0001 /* Constants.swift in Sources */,
+				A100000D251B0001 /* Extensions.swift in Sources */,
+				A100000F251B0001 /* HotKeyManager.swift in Sources */,
+				A1000011251B0001 /* BatteryMonitor.swift in Sources */,
+				A1000013251B0001 /* BurnInProtection.swift in Sources */,
+				A1000015251B0001 /* RingLightWindow.swift in Sources */,
+				A1000017251B0001 /* RingLightView.swift in Sources */,
+				A1000019251B0001 /* HDRRingLayer.swift in Sources */,
+				A100001B251B0001 /* PerlinNoise.swift in Sources */,
+				A100001D251B0001 /* ControlPanelView.swift in Sources */,
+				A100001F251B0001 /* PowerButton.swift in Sources */,
+				A1000021251B0001 /* ModeSelector.swift in Sources */,
+				A1000023251B0001 /* IntensitySlider.swift in Sources */,
+				A1000025251B0001 /* ColorWheelView.swift in Sources */,
+				A1000027251B0001 /* PresetGrid.swift in Sources */,
+				A1000029251B0001 /* SpeedControl.swift in Sources */,
+				A100002F251B0001 /* RingShapeControls.swift in Sources */,
+				A1000031251B0001 /* ScreenGlowOverlay.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A1000102251B0001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A1000103251B0001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		A1000104251B0001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = GlowRim/GlowRim.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlowRim/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GlowRim;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2025 Thibault Bazin. MIT License.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.antigravity.GlowRim;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A1000105251B0001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = GlowRim/GlowRim.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GlowRim/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = GlowRim;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright 2025 Thibault Bazin. MIT License.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.antigravity.GlowRim;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1000100251B0001 /* Build configuration list for PBXNativeTarget "GlowRim" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000104251B0001 /* Debug */,
+				A1000105251B0001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A1000101251B0001 /* Build configuration list for PBXProject "GlowRim" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1000102251B0001 /* Debug */,
+				A1000103251B0001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A10000FE251B0001 /* Project object */;
+}
