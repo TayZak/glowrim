@@ -17,7 +17,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let warm = ColorPreset(
         id: "warm",
-        name: "Warm",
+        name: "Chaud",
         red: 1.0,
         green: 0.85,
         blue: 0.7
@@ -25,7 +25,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let cool = ColorPreset(
         id: "cool",
-        name: "Cool",
+        name: "Froid",
         red: 0.85,
         green: 0.92,
         blue: 1.0
@@ -33,7 +33,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let daylight = ColorPreset(
         id: "daylight",
-        name: "Daylight",
+        name: "Jour",
         red: 1.0,
         green: 0.98,
         blue: 0.95
@@ -41,7 +41,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let goldenHour = ColorPreset(
         id: "golden",
-        name: "Golden Hour",
+        name: "Doré",
         red: 1.0,
         green: 0.78,
         blue: 0.45
@@ -49,7 +49,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let sunset = ColorPreset(
         id: "sunset",
-        name: "Sunset",
+        name: "Soleil",
         red: 1.0,
         green: 0.55,
         blue: 0.35
@@ -57,7 +57,7 @@ struct ColorPreset: Identifiable, Codable, Equatable {
 
     static let custom = ColorPreset(
         id: "custom",
-        name: "Custom",
+        name: "Libre",
         red: 1.0,
         green: 1.0,
         blue: 1.0

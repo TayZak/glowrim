@@ -1,97 +1,60 @@
 import Foundation
 import IOKit.ps
-import Combine
 
 @Observable
 final class BatteryMonitor {
     static let shared = BatteryMonitor()
-
-    private(set) var batteryLevel: Double = 1.0
-    private(set) var isCharging: Bool = true
-    private(set) var isLowBattery: Bool = false
-
-    private var timer: Timer?
-    private let lowBatteryThreshold = Constants.batteryThreshold
-
-    var shouldPauseDueToLowBattery: Bool {
-        isLowBattery && !isCharging
-    }
+    private(set) var batteryLevel: Double = 1
+    private(set) var isCharging = true
+    private(set) var isLowBattery = false
+    @ObservationIgnored private var powerSource: CFRunLoopSource?
+    var shouldPauseDueToLowBattery: Bool { isLowBattery && !isCharging }
 
     private init() {
-        updateBatteryStatus()
-        startMonitoring()
+        updateBatteryStatus(notify: false)
+        // Event-driven battery monitoring: no polling when the app is idle.
+        powerSource = IOPSNotificationCreateRunLoopSource({ context in
+            guard let context else { return }
+            Unmanaged<BatteryMonitor>.fromOpaque(context).takeUnretainedValue().updateBatteryStatus()
+        }, Unmanaged.passUnretained(self).toOpaque())?.takeRetainedValue()
+        if let powerSource { CFRunLoopAddSource(CFRunLoopGetMain(), powerSource, .commonModes) }
     }
-
     deinit {
-        stopMonitoring()
-    }
-
-    private func startMonitoring() {
-        // Update every 30 seconds
-        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            self?.updateBatteryStatus()
+        if let powerSource {
+            CFRunLoopRemoveSource(CFRunLoopGetMain(), powerSource, .commonModes)
+            CFRunLoopSourceInvalidate(powerSource)
         }
     }
-
-    private func stopMonitoring() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    private func updateBatteryStatus() {
-        guard let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef],
-              !sources.isEmpty else {
-            // No battery (desktop Mac) - assume always powered
-            batteryLevel = 1.0
-            isCharging = true
-            isLowBattery = false
-            return
-        }
-
-        for source in sources {
-            guard let info = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any] else {
-                continue
-            }
-
-            // Get battery level
-            if let capacity = info[kIOPSCurrentCapacityKey] as? Int,
-               let maxCapacity = info[kIOPSMaxCapacityKey] as? Int,
-               maxCapacity > 0 {
-                batteryLevel = Double(capacity) / Double(maxCapacity)
-            }
-
-            // Get charging status
-            if let powerSource = info[kIOPSPowerSourceStateKey] as? String {
-                isCharging = powerSource == kIOPSACPowerValue
-            }
-
-            // Check if charging
-            if let chargingState = info[kIOPSIsChargingKey] as? Bool {
-                isCharging = isCharging || chargingState
+    var hasNotificationSource: Bool { powerSource.map { CFRunLoopSourceIsValid($0) } ?? false }
+    private func updateBatteryStatus(notify: Bool = true) {
+        var level = 1.0
+        var plugged = true
+        if let snapshot = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
+           let sources = IOPSCopyPowerSourcesList(snapshot)?.takeRetainedValue() as? [CFTypeRef] {
+            for source in sources {
+                guard let info = IOPSGetPowerSourceDescription(snapshot, source)?.takeUnretainedValue() as? [String: Any],
+                      info[kIOPSTypeKey] as? String == kIOPSInternalBatteryType else { continue }
+                if let capacity = info[kIOPSCurrentCapacityKey] as? Int,
+                   let maximum = info[kIOPSMaxCapacityKey] as? Int, maximum > 0 {
+                    level = max(0, min(1, Double(capacity) / Double(maximum)))
+                }
+                plugged = info[kIOPSPowerSourceStateKey] as? String == kIOPSACPowerValue
+                break
             }
         }
-
-        // Update low battery flag
-        isLowBattery = batteryLevel < lowBatteryThreshold
-
-        if isLowBattery && !isCharging {
-            NotificationCenter.default.post(
-                name: .glowrimLowBattery,
-                object: nil,
-                userInfo: ["level": batteryLevel]
-            )
-        }
+        let powerChanged = plugged != isCharging
+        let low = level < Constants.batteryThreshold
+        let newlyLow = low && !plugged && !shouldPauseDueToLowBattery
+        if batteryLevel != level { batteryLevel = level }
+        if isCharging != plugged { isCharging = plugged }
+        if isLowBattery != low { isLowBattery = low }
+        if notify && powerChanged { NotificationCenter.default.post(name: .glowrimPowerSourceChanged, object: nil) }
+        if notify && newlyLow { NotificationCenter.default.post(name: .glowrimLowBattery, object: nil) }
     }
-
-    /// Force refresh battery status
-    func refresh() {
-        updateBatteryStatus()
-    }
+    func refresh() { updateBatteryStatus() }
 }
-
-// MARK: - Notifications
 
 extension Notification.Name {
     static let glowrimLowBattery = Notification.Name("glowrimLowBattery")
+    static let glowrimPowerSourceChanged = Notification.Name("glowrimPowerSourceChanged")
 }

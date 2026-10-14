@@ -30,6 +30,8 @@
 		A100002B251B0001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A100002C251B0001 /* Assets.xcassets */; };
 		A100002F251B0001 /* RingShapeControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000030251B0001 /* RingShapeControls.swift */; };
 		A1000031251B0001 /* ScreenGlowOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000032251B0001 /* ScreenGlowOverlay.swift */; };
+		B2000001ABCDEF0000000001 /* BreathingAnimation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001ABCDEF0000000002; };
+		B2000001ABCDEF0000000003 /* RenderBudget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2000001ABCDEF0000000004; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +61,8 @@
 		A100002E251B0001 /* GlowRim.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = GlowRim.entitlements; sourceTree = "<group>"; };
 		A1000030251B0001 /* RingShapeControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RingShapeControls.swift; sourceTree = "<group>"; };
 		A1000032251B0001 /* ScreenGlowOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenGlowOverlay.swift; sourceTree = "<group>"; };
+		B2000001ABCDEF0000000002 /* BreathingAnimation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BreathingAnimation.swift; sourceTree = "<group>"; };
+		B2000001ABCDEF0000000004 /* RenderBudget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenderBudget.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +115,8 @@
 				A1000006251B0001 /* LightMode.swift */,
 				A1000008251B0001 /* LightSettings.swift */,
 				A100000A251B0001 /* ColorPreset.swift */,
+				B2000001ABCDEF0000000002 /* BreathingAnimation.swift */,
+				B2000001ABCDEF0000000004 /* RenderBudget.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -235,6 +241,8 @@
 				A1000005251B0001 /* LightMode.swift in Sources */,
 				A1000007251B0001 /* LightSettings.swift in Sources */,
 				A1000009251B0001 /* ColorPreset.swift in Sources */,
+				B2000001ABCDEF0000000001 /* BreathingAnimation.swift in Sources */,
+				B2000001ABCDEF0000000003 /* RenderBudget.swift in Sources */,
 				A100000B251B0001 /* Constants.swift in Sources */,
 				A100000D251B0001 /* Extensions.swift in Sources */,
 				A100000F251B0001 /* HotKeyManager.swift in Sources */,
@@ -384,7 +392,7 @@
 				CODE_SIGN_ENTITLEMENTS = GlowRim/GlowRim.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -397,7 +405,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.antigravity.GlowRim;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -413,7 +421,7 @@
 				CODE_SIGN_ENTITLEMENTS = GlowRim/GlowRim.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -426,7 +434,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.antigravity.GlowRim;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

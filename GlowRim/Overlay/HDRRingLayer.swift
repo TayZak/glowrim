@@ -1,265 +1,167 @@
 import AppKit
-import QuartzCore
-import CoreGraphics
+import MetalKit
 
-/// CALayer that renders HDR ring light with bloom effect
-final class HDRRingLayer: CALayer {
-    // MARK: - Properties
+/// FP16 EDR, rendered only in the thin bands occupied by the diffuse light.
+final class HDRRingRenderer: NSObject, MTKViewDelegate {
+    private struct Resources {
+        let queue: MTLCommandQueue
+        let pipeline: MTLRenderPipelineState
+    }
+    // Reuse the compiled shader when the lightweight overlay is opened again.
+    private static var resources: [UInt64: Resources] = [:]
+    private let gpu: Resources
+    private var style = Style(settings: .shared)
+    var breath = BreathingAnimation.Sample.still
+    var fade: Float = 0
+    var headroom: Float = 1
+    var blackout = false
+    private(set) var drawCount = 0
 
-    private var ringPath: CGPath?
-    private var ringCenter: CGPoint = .zero
-    private var outerRadius: CGFloat = 0
-    private var innerRadius: CGFloat = 0
-
-    private var red: CGFloat = 1.0
-    private var green: CGFloat = 0.95
-    private var blue: CGFloat = 0.9
-    private var intensity: CGFloat = 0.8
-
-    private var bloomLayer: CALayer?
-
-    // MARK: - Initialization
-
-    override init() {
+    init(view: MTKView, device: MTLDevice) throws {
+        if let cached = Self.resources[device.registryID] {
+            gpu = cached
+        } else {
+            guard let queue = device.makeCommandQueue() else { throw RendererError.unavailable }
+            let library = try device.makeLibrary(source: Self.shader, options: nil)
+            let descriptor = MTLRenderPipelineDescriptor()
+            descriptor.vertexFunction = library.makeFunction(name: "fullscreen")
+            descriptor.fragmentFunction = library.makeFunction(name: "rim")
+            descriptor.colorAttachments[0].pixelFormat = .rgba16Float
+            gpu = Resources(queue: queue, pipeline: try device.makeRenderPipelineState(descriptor: descriptor))
+            Self.resources[device.registryID] = gpu
+        }
         super.init()
-        setupLayer()
+        view.delegate = self
     }
+    enum RendererError: Error { case unavailable }
 
-    override init(layer: Any) {
-        super.init(layer: layer)
-        if let other = layer as? HDRRingLayer {
-            ringPath = other.ringPath
-            ringCenter = other.ringCenter
-            outerRadius = other.outerRadius
-            innerRadius = other.innerRadius
-            red = other.red
-            green = other.green
-            blue = other.blue
-            intensity = other.intensity
+    struct Uniforms {
+        var size: SIMD2<Float>
+        var width: Float
+        var softness: Float
+        var color: SIMD4<Float>
+        var radius: Float
+        var luminance: Float
+        var fade: Float
+        var blackout: Float
+        var contour: Float = 0
+        var pixelWidth: Float = 1
+        var lobes: SIMD4<Float> = .zero
+    }
+    private struct Style {
+        let width: Float
+        let softness: Float
+        let color: SIMD4<Float>
+        let radius: Float
+        let intensity: Float
+        let hdr: Bool
+        init(settings: LightSettings) {
+            func linear(_ v: Double) -> Float { Float(v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4)) }
+            width = Float(settings.ringWidth); softness = Float(settings.softness)
+            color = SIMD4(linear(settings.red), linear(settings.green), linear(settings.blue), 1)
+            radius = Float(settings.cornerRadius); intensity = Float(settings.intensity); hdr = settings.hdrEnabled
         }
     }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupLayer()
+    func updateStyle(from settings: LightSettings) { style = Style(settings: settings) }
+    static func uniforms(size: CGSize, pixels: CGSize, settings: LightSettings,
+                         breath: BreathingAnimation.Sample, headroom: Float, fade: Float, blackout: Bool) -> Uniforms {
+        uniforms(size: size, pixels: pixels, style: Style(settings: settings), breath: breath,
+                 headroom: headroom, fade: fade, blackout: blackout)
+    }
+    private static func uniforms(size: CGSize, pixels: CGSize, style: Style,
+                                 breath: BreathingAnimation.Sample, headroom: Float, fade: Float, blackout: Bool) -> Uniforms {
+        Uniforms(size: SIMD2(Float(size.width), Float(size.height)),
+            width: style.width * breath.width, softness: style.softness * breath.diffusion,
+            color: style.color, radius: Float(min(size.width, size.height)) * style.radius,
+            luminance: style.intensity * (style.hdr ? max(1, headroom) : 1) * breath.luminance,
+            fade: fade, blackout: blackout ? 1 : 0,
+            contour: min(42, max(12, style.width * 0.55)) * breath.contour,
+            pixelWidth: Float(max(size.width / max(1, pixels.width), size.height / max(1, pixels.height))),
+            lobes: breath.lobes)
     }
 
-    private func setupLayer() {
-        // Enable HDR rendering
-        if #available(macOS 10.15, *) {
-            wantsExtendedDynamicRangeContent = true
+    /// Four non-overlapping scissors. The transparent center never runs the shader.
+    /// The bound includes the rounded corners and the entire finite Gaussian tail.
+    static func bands(for u: Uniforms, pixels: CGSize) -> [MTLScissorRect] {
+        let width = max(1, Int(pixels.width)); let height = max(1, Int(pixels.height))
+        let sigma = (u.width + abs(u.contour)) * 0.42 + u.softness * 0.42
+        let reach = max(1, sigma) * 3.95 + u.pixelWidth * 2
+        let radius = min(u.radius, min(u.size.x, u.size.y) * 0.5)
+        let band = max(reach, radius * (1 - 1 / sqrt(Float(2))) + reach / sqrt(Float(2)))
+        let x = min(width / 2 + width % 2, max(1, Int(ceil(band / u.size.x * Float(width)))))
+        let y = min(height / 2 + height % 2, max(1, Int(ceil(band / u.size.y * Float(height)))))
+        if x * 2 >= width || y * 2 >= height { return [.init(x: 0, y: 0, width: width, height: height)] }
+        return [.init(x: 0, y: 0, width: width, height: y),
+                .init(x: 0, y: height-y, width: width, height: y),
+                .init(x: 0, y: y, width: x, height: height-y*2),
+                .init(x: width-x, y: y, width: x, height: height-y*2)]
+    }
+    func draw(in view: MTKView) {
+        autoreleasepool { drawFrame(in: view) }
+    }
+    private func drawFrame(in view: MTKView) {
+        guard view.bounds.width > 0, view.bounds.height > 0 else { return }
+        view.clearColor = MTLClearColorMake(0, 0, 0, blackout ? Double(fade) : 0)
+        guard let pass = view.currentRenderPassDescriptor, let drawable = view.currentDrawable,
+              let command = gpu.queue.makeCommandBuffer(),
+              let encoder = command.makeRenderCommandEncoder(descriptor: pass) else { return }
+        var u = Self.uniforms(size: view.bounds.size, pixels: view.drawableSize, style: style,
+            breath: breath, headroom: headroom, fade: fade, blackout: blackout)
+        encoder.setRenderPipelineState(gpu.pipeline)
+        encoder.setFragmentBytes(&u, length: MemoryLayout<Uniforms>.stride, index: 0)
+        for band in Self.bands(for: u, pixels: view.drawableSize) {
+            encoder.setScissorRect(band)
+            encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
         }
-
-        // Use extended linear display P3 for HDR
-        if let colorSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3) {
-            self.colorspace = colorSpace
-        }
-
-        isOpaque = false
-        backgroundColor = CGColor.clear
-
-        // Create bloom sublayer for glow effect
-        let bloom = CALayer()
-        bloom.isOpaque = false
-        bloom.backgroundColor = CGColor.clear
-        addSublayer(bloom)
-        bloomLayer = bloom
+        encoder.endEncoding()
+        command.present(drawable)
+        command.commit()
+        drawCount += 1
     }
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 
-    // MARK: - Path Updates
-
-    func updatePath(_ path: CGPath, center: CGPoint, outerRadius: CGFloat, innerRadius: CGFloat) {
-        self.ringPath = path
-        self.ringCenter = center
-        self.outerRadius = outerRadius
-        self.innerRadius = innerRadius
-
-        setNeedsDisplay()
-        updateBloom()
+    static let shader = """
+    #include <metal_stdlib>
+    using namespace metal;
+    struct Vertex { float4 position [[position]]; float2 uv; };
+    struct Uniforms {
+        float2 size; float width; float softness; float4 color;
+        float radius; float luminance; float fade; float blackout;
+        float contour; float pixelWidth; float4 lobes;
+    };
+    vertex Vertex fullscreen(uint id [[vertex_id]]) {
+        float2 positions[3] = {float2(-1,-1), float2(3,-1), float2(-1,3)};
+        Vertex v; v.position = float4(positions[id],0,1);
+        v.uv = positions[id] * 0.5 + 0.5; return v;
     }
-
-    // MARK: - Color and Intensity
-
-    func setColor(red: Double, green: Double, blue: Double) {
-        self.red = CGFloat(red)
-        self.green = CGFloat(green)
-        self.blue = CGFloat(blue)
-        setNeedsDisplay()
-        updateBloom()
+    fragment half4 rim(Vertex v [[stage_in]], constant Uniforms &u [[buffer(0)]]) {
+        float2 p = v.uv * u.size;
+        float radius = clamp(u.radius, 0.0, min(u.size.x,u.size.y)*0.5);
+        float2 q = abs(p-u.size*0.5) - (u.size*0.5-radius);
+        float distance = length(max(q,float2(0))) + min(max(q.x,q.y),0.0) - radius;
+        float outside = 1.0-smoothstep(-u.pixelWidth,u.pixelWidth,distance);
+        // Broad polynomial lobes: smooth at every corner, no per-pixel trig.
+        float2 t = clamp(v.uv,0.0,1.0);
+        float2 arches = 16.0*t*t*(1.0-t)*(1.0-t);
+        float wave = 0.5*(arches.x*mix(u.lobes.x,u.lobes.y,t.y)
+                         + arches.y*mix(u.lobes.z,u.lobes.w,t.x));
+        float localWidth = max(1.0,u.width+u.contour*wave);
+        float sigma = max(1.0,0.42*(localWidth+u.softness));
+        // Smooth the interior corner join so the light never forms a hard
+        // diagonal crease where two nearest edges meet.
+        float join = max(1.0,sigma*1.4);
+        float h = max(join-abs(q.x-q.y),0.0)/join;
+        float smoothMax = max(q.x,q.y)+h*h*join*0.25;
+        float innerDistance = length(max(q,float2(0)))+min(smoothMax,0.0)-radius;
+        float inset = max(0.0,-innerDistance);
+        float normalized = inset/sigma;
+        // A continuous falloff instead of an opaque band with a straight inner edge.
+        float coverage = exp(-0.5*normalized*normalized)
+                         * (1.0-smoothstep(3.2,3.6,normalized)) * outside;
+        float a = clamp(coverage*u.fade,0.0,1.0);
+        float3 rgb = u.color.rgb*u.luminance*a;
+        float blackAlpha = u.blackout*u.fade;
+        return half4(half3(rgb),half(a+blackAlpha*(1.0-a)));
     }
-
-    func setIntensity(_ value: Double) {
-        self.intensity = CGFloat(value)
-        setNeedsDisplay()
-        updateBloom()
-    }
-
-    // MARK: - Drawing
-
-    override func draw(in ctx: CGContext) {
-        guard let path = ringPath else { return }
-
-        // Calculate HDR color values
-        let hdrMultiplier = calculateHDRMultiplier()
-
-        let hdrRed = red * hdrMultiplier
-        let hdrGreen = green * hdrMultiplier
-        let hdrBlue = blue * hdrMultiplier
-
-        // Create HDR color (values > 1.0 for extended brightness)
-        let colorSpace = CGColorSpace(name: CGColorSpace.extendedLinearDisplayP3) ?? CGColorSpaceCreateDeviceRGB()
-        let components: [CGFloat] = [hdrRed, hdrGreen, hdrBlue, 1.0]
-
-        guard let hdrColor = CGColor(colorSpace: colorSpace, components: components) else { return }
-
-        // Draw ring
-        ctx.saveGState()
-
-        // Fill rule for ring (outer - inner)
-        ctx.addPath(path)
-        ctx.setFillColor(hdrColor)
-        ctx.fillPath(using: .evenOdd)
-
-        ctx.restoreGState()
-
-        // Draw gradient for depth effect
-        drawGradientOverlay(in: ctx)
-    }
-
-    private func calculateHDRMultiplier() -> CGFloat {
-        // Check if display supports HDR
-        guard let screen = NSScreen.main else {
-            return intensity
-        }
-
-        if #available(macOS 10.15, *) {
-            let headroom = screen.maximumPotentialExtendedDynamicRangeColorComponentValue
-            if headroom > 1.0 {
-                // Scale intensity to use HDR headroom
-                // intensity 1.0 = full HDR (up to 4x brightness on XDR displays)
-                return intensity * min(Constants.maxHDRMultiplier, headroom)
-            }
-        }
-
-        return intensity
-    }
-
-    private func drawGradientOverlay(in ctx: CGContext) {
-        guard innerRadius > 0, outerRadius > innerRadius else { return }
-
-        ctx.saveGState()
-
-        // Create subtle gradient for 3D effect
-        let locations: [CGFloat] = [0.0, 0.3, 0.7, 1.0]
-        let components: [CGFloat] = [
-            1.0, 1.0, 1.0, 0.0,    // Inner edge - transparent
-            1.0, 1.0, 1.0, 0.1,    // Inner highlight
-            1.0, 1.0, 1.0, 0.05,   // Outer shadow
-            1.0, 1.0, 1.0, 0.0     // Outer edge - transparent
-        ]
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let gradient = CGGradient(
-            colorSpace: colorSpace,
-            colorComponents: components,
-            locations: locations,
-            count: locations.count
-        ) else {
-            ctx.restoreGState()
-            return
-        }
-
-        // Clip to ring path
-        if let path = ringPath {
-            ctx.addPath(path)
-            ctx.clip(using: .evenOdd)
-        }
-
-        // Draw radial gradient
-        ctx.drawRadialGradient(
-            gradient,
-            startCenter: ringCenter,
-            startRadius: innerRadius,
-            endCenter: ringCenter,
-            endRadius: outerRadius,
-            options: []
-        )
-
-        ctx.restoreGState()
-    }
-
-    // MARK: - Bloom Effect
-
-    private func updateBloom() {
-        guard let bloom = bloomLayer else { return }
-
-        bloom.frame = bounds
-
-        // Create bloom image
-        let bloomSize = bounds.size
-        guard bloomSize.width > 0, bloomSize.height > 0 else { return }
-
-        // Bloom is a blurred, semi-transparent version of the ring
-        let bloomImage = createBloomImage(size: bloomSize)
-        bloom.contents = bloomImage
-        bloom.opacity = Float(intensity * 0.3)
-    }
-
-    private func createBloomImage(size: CGSize) -> CGImage? {
-        guard let path = ringPath else { return nil }
-
-        // Create context for bloom
-        let scale = contentsScale
-        let pixelWidth = Int(size.width * scale)
-        let pixelHeight = Int(size.height * scale)
-
-        guard pixelWidth > 0, pixelHeight > 0 else { return nil }
-
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        guard let ctx = CGContext(
-            data: nil,
-            width: pixelWidth,
-            height: pixelHeight,
-            bitsPerComponent: 8,
-            bytesPerRow: 0,
-            space: colorSpace,
-            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-        ) else { return nil }
-
-        ctx.scaleBy(x: scale, y: scale)
-
-        // Draw ring with glow color
-        let glowColor = CGColor(red: red, green: green, blue: blue, alpha: 0.5)
-        ctx.addPath(path)
-        ctx.setFillColor(glowColor)
-        ctx.fillPath(using: .evenOdd)
-
-        return ctx.makeImage()
-    }
-}
-
-// MARK: - CALayer HDR Extension
-
-extension CALayer {
-    /// Enables extended dynamic range content if available
-    @available(macOS 10.15, *)
-    var wantsExtendedDynamicRangeContent: Bool {
-        get {
-            value(forKey: "wantsExtendedDynamicRangeContent") as? Bool ?? false
-        }
-        set {
-            setValue(newValue, forKey: "wantsExtendedDynamicRangeContent")
-        }
-    }
-
-    /// Sets the color space for HDR rendering
-    var colorspace: CGColorSpace? {
-        get {
-            let val = value(forKey: "colorspace")
-            return val as! CGColorSpace?
-        }
-        set {
-            setValue(newValue, forKey: "colorspace")
-        }
-    }
+    """
 }
